@@ -4,7 +4,7 @@ from DeviceID import get_or_create_device_id
 
 # Database configuration
 DB_CONFIG = {
-    'host': 'localhost',
+    'host': 'localhost', # Add custom ip/url for db
     'user': 'root',
     'password': 'hello',  # Add your MySQL password here
     'database': 'safiflow'
