@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafiFlow - All Readings</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #4a5568;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .device-id {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            background: #4a5568;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .nav-btn:hover {
+            background: #2d3748;
+            transform: translateY(-2px);
+        }
+
+        .nav-btn.dashboard {
+            background: #38a169;
+        }
+
+        .nav-btn.dashboard:hover {
+            background: #2f855a;
+        }
+
+        .filters {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        .filter-group select {
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: white;
+        }
+
+        .filter-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .readings-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .readings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .readings-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #4a5568;
+        }
+
+        .readings-count {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        .readings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .readings-table th {
+            background: #f7fafc;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #4a5568;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .readings-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .readings-table tr:hover {
+            background: #f7fafc;
+        }
+
+        .type-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .type-energy_usage {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .type-energy_collected {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .type-water_purified {
+            background: #bee3f8;
+            color: #2a4365;
+        }
+
+        .period-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .period-initial {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .period-hourly {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .period-daily {
+            background: #bee3f8;
+            color: #2a4365;
+        }
+
+        .period-weekly {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .period-monthly {
+            background: #faf5ff;
+            color: #553c9a;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .pagination a {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #4a5568;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .pagination a:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination .current {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination .disabled {
+            color: #a0aec0;
+            pointer-events: none;
+        }
+
+        .no-readings {
+            text-align: center;
+            padding: 40px;
+            color: #a0aec0;
+            font-style: italic;
+        }
+
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+
+        .flash {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .flash.success {
+            background: #c6f6d5;
+            color: #22543d;
+            border-left: 4px solid #38a169;
+        }
+
+        .flash.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border-left: 4px solid #e53e3e;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .filter-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .readings-table {
+                font-size: 0.9rem;
+            }
+
+            .readings-table th,
+            .readings-table td {
+                padding: 8px 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1><i class="fas fa-list"></i> All Readings</h1>
+                <div class="device-id">
+                    <i class="fas fa-microchip"></i> Device ID: {{ device_id }}
+                </div>
+            </div>
+            <div class="nav-buttons">
+                <a href="{{ url_for('dashboard') }}" class="nav-btn dashboard">
+                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                </a>
+                <a href="{{ url_for('logout') }}" class="nav-btn">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash {{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Filters -->
+        <div class="filters">
+            <form method="get" action="{{ url_for('readings') }}">
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label for="type">Measurement Type</label>
+                        <select name="type" id="type" onchange="this.form.submit()">
+                            <option value="all" {% if measurement_type == 'all' %}selected{% endif %}>All Measurements</option>
+                            <option value="energy_usage" {% if measurement_type == 'energy_usage' %}selected{% endif %}>Energy Usage</option>
+                            <option value="energy_collected" {% if measurement_type == 'energy_collected' %}selected{% endif %}>Energy Collected</option>
+                            <option value="water_purified" {% if measurement_type == 'water_purified' %}selected{% endif %}>Water Purified</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="per_page">Per Page</label>
+                        <select name="per_page" id="per_page" onchange="this.form.submit()">
+                            <option value="10" {% if readings_data.per_page == 10 %}selected{% endif %}>10</option>
+                            <option value="20" {% if readings_data.per_page == 20 %}selected{% endif %}>20</option>
+                            <option value="50" {% if readings_data.per_page == 50 %}selected{% endif %}>50</option>
+                            <option value="100" {% if readings_data.per_page == 100 %}selected{% endif %}>100</option>
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Readings Container -->
+        <div class="readings-container">
+            <div class="readings-header">
+                <div class="readings-title">
+                    {% if measurement_type == 'all' %}
+                        All Measurements
+                    {% elif measurement_type == 'energy_usage' %}
+                        Energy Usage Readings
+                    {% elif measurement_type == 'energy_collected' %}
+                        Energy Collected Readings
+                    {% elif measurement_type == 'water_purified' %}
+                        Water Purified Readings
+                    {% endif %}
+                </div>
+                <div class="readings-count">
+                    {{ readings_data.total }} total readings
+                </div>
+            </div>
+
+            {% if readings_data.readings %}
+                <table class="readings-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Value</th>
+                            <th>Recorded At</th>
+                            <th>Last Updated</th>
+                            <th>Period</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reading in readings_data.readings %}
+                        <tr>
+                            <td>
+                                <span class="type-badge type-{{ reading.type }}">
+                                    {% if reading.type == 'energy_usage' %}
+                                        <i class="fas fa-bolt"></i> Energy Usage
+                                    {% elif reading.type == 'energy_collected' %}
+                                        <i class="fas fa-solar-panel"></i> Energy Collected
+                                    {% elif reading.type == 'water_purified' %}
+                                        <i class="fas fa-tint"></i> Water Purified
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <strong>{{ "%.2f"|format(reading.usage) }} {{ reading.unit }}</strong>
+                            </td>
+                            <td>
+                                {{ reading.recorded_at.strftime('%Y-%m-%d %H:%M:%S') if reading.recorded_at else 'N/A' }}
+                            </td>
+                            <td>
+                                {% if reading.last_updated %}
+                                    {{ reading.last_updated.strftime('%Y-%m-%d %H:%M:%S') }}
+                                {% else %}
+                                    <span style="color: #a0aec0;">Initial</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if reading.period %}
+                                    <span class="period-badge period-{{ reading.period }}">
+                                        {{ reading.period|title }}
+                                    </span>
+                                {% else %}
+                                    <span style="color: #a0aec0;">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <!-- Pagination -->
+                {% if readings_data.pages > 1 %}
+                <div class="pagination">
+                    {% if readings_data.page > 1 %}
+                        <a href="{{ url_for('readings', type=measurement_type, page=readings_data.page-1, per_page=readings_data.per_page) }}">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                    {% else %}
+                        <span class="disabled"><i class="fas fa-chevron-left"></i> Previous</span>
+                    {% endif %}
+
+                    {% for page_num in range(1, readings_data.pages + 1) %}
+                        {% if page_num == readings_data.page %}
+                            <span class="current">{{ page_num }}</span>
+                        {% else %}
+                            <a href="{{ url_for('readings', type=measurement_type, page=page_num, per_page=readings_data.per_page) }}">
+                                {{ page_num }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if readings_data.page < readings_data.pages %}
+                        <a href="{{ url_for('readings', type=measurement_type, page=readings_data.page+1, per_page=readings_data.per_page) }}">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    {% else %}
+                        <span class="disabled">Next <i class="fas fa-chevron-right"></i></span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="no-readings">
+                    <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 20px; display: block; color: #a0aec0;"></i>
+                    <h3>No readings found</h3>
+                    <p>Start adding measurements to see them here!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html> 
