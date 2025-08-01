@@ -13,7 +13,7 @@ Session(app)
 
 # Database configuration
 DB_CONFIG = {
-    'host': 'localhost', # Add custom ip/url for db
+    'host': '192.168.72.143', # Add custom ip/url for db
     'user': 'root',
     'password': 'hello',  # Add your MySQL password here
     'database': 'safiflow'

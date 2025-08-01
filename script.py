@@ -27,7 +27,7 @@ keypad = factory.create_keypad(keypad=KEYPAD, row_pins=ROW_PINS, col_pins=COL_PI
 
 # Database configuration
 DB_CONFIG = {
-    'host': 'localhost', # Add custom ip/url for db
+    'host': '192.168.72.143', # Add custom ip/url for db
     'user': 'root',
     'password': 'hello',  # Add your MySQL password here
     'database': 'safiflow'
