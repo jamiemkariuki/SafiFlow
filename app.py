@@ -3,6 +3,7 @@ from flask_session import Session
 import mysql.connector
 from mysql.connector import Error
 from DeviceID import get_or_create_device_id
+from trend_analyzer import TrendAnalyzer
 import datetime as dt
 import os
 
@@ -11,9 +12,12 @@ app.secret_key = 'safiflow_secret_key_2024'  # Change this in production
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 
+# Initialize trend analyzer
+trend_analyzer = TrendAnalyzer()
+
 # Database configuration
 DB_CONFIG = {
-    'host': '192.168.72.143', # Add custom ip/url for db
+    'host': '192.168.72.143',  # Add custom ip/url for db
     'user': 'root',
     'password': 'hello',  # Add your MySQL password here
     'database': 'safiflow'
@@ -92,7 +96,7 @@ def get_all_readings(device_id, measurement_type=None, page=1, per_page=20):
                 
                 # Energy Usage
                 cursor.execute("""
-                    SELECT 'energy_usage' as type, `usage`, recorded_at, last_updated, period, 'kWh' as unit
+                    SELECT id, 'energy_usage' as type, `usage`, recorded_at, last_updated, period, 'kWh' as unit
                     FROM EnergyUsage WHERE device_id = %s
                     ORDER BY recorded_at DESC
                 """, (device_id,))
@@ -100,7 +104,7 @@ def get_all_readings(device_id, measurement_type=None, page=1, per_page=20):
                 
                 # Energy Collected
                 cursor.execute("""
-                    SELECT 'energy_collected' as type, `usage`, recorded_at, last_updated, period, 'kWh' as unit
+                    SELECT id, 'energy_collected' as type, `usage`, recorded_at, last_updated, period, 'kWh' as unit
                     FROM EnergyCollected WHERE device_id = %s
                     ORDER BY recorded_at DESC
                 """, (device_id,))
@@ -108,7 +112,7 @@ def get_all_readings(device_id, measurement_type=None, page=1, per_page=20):
                 
                 # Water Purified
                 cursor.execute("""
-                    SELECT 'water_purified' as type, `usage`, recorded_at, last_updated, period, 'Litres' as unit
+                    SELECT id, 'water_purified' as type, `usage`, recorded_at, last_updated, period, 'Litres' as unit
                     FROM WaterPurified WHERE device_id = %s
                     ORDER BY recorded_at DESC
                 """, (device_id,))
@@ -140,7 +144,7 @@ def get_all_readings(device_id, measurement_type=None, page=1, per_page=20):
             
             # Get paginated readings
             query = f"""
-                SELECT `usage`, recorded_at, last_updated, period
+                SELECT id, `usage`, recorded_at, last_updated, period
                 FROM {table_name}
                 WHERE device_id = %s
                 ORDER BY recorded_at DESC
@@ -267,6 +271,128 @@ def get_device_data(device_id):
                 connection.close()
     return None
 
+def get_device_alerts(device_id):
+    """Get alerts for a specific device"""
+    try:
+        # Run trend analysis for the device
+        device_alerts = trend_analyzer.analyze_device(device_id)
+        
+        # Get existing alerts for the device
+        existing_alerts = trend_analyzer.get_alerts_for_device(device_id)
+        
+        # Combine and sort by timestamp (newest first)
+        all_alerts = device_alerts + existing_alerts
+        all_alerts.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        return all_alerts
+    except Exception as e:
+        print(f"Error getting alerts: {e}")
+        return []
+
+def get_measurement_by_id(measurement_id, measurement_type):
+    """Get a specific measurement by ID"""
+    connection = create_database_connection()
+    if connection:
+        try:
+            cursor = connection.cursor(dictionary=True)
+            
+            if measurement_type == 'energy_usage':
+                table_name = 'EnergyUsage'
+            elif measurement_type == 'energy_collected':
+                table_name = 'EnergyCollected'
+            elif measurement_type == 'water_purified':
+                table_name = 'WaterPurified'
+            else:
+                return None
+            
+            query = f"""
+                SELECT id, device_id, `usage`, recorded_at, last_updated, period
+                FROM {table_name}
+                WHERE id = %s
+            """
+            cursor.execute(query, (measurement_id,))
+            return cursor.fetchone()
+            
+        except Error as e:
+            print(f"Error getting measurement: {e}")
+            return None
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+    return None
+
+def update_measurement(measurement_id, measurement_type, new_value, device_id):
+    """Update a measurement"""
+    connection = create_database_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            current_time = dt.datetime.now()
+            
+            if measurement_type == 'energy_usage':
+                table_name = 'EnergyUsage'
+            elif measurement_type == 'energy_collected':
+                table_name = 'EnergyCollected'
+            elif measurement_type == 'water_purified':
+                table_name = 'WaterPurified'
+            else:
+                return False
+            
+            # Get the last updated timestamp for period calculation
+            last_updated = get_last_updated(device_id, table_name)
+            calculated_period = calculate_period(last_updated, current_time)
+            
+            query = f"""
+                UPDATE {table_name}
+                SET `usage` = %s, last_updated = %s, period = %s
+                WHERE id = %s AND device_id = %s
+            """
+            cursor.execute(query, (new_value, last_updated, calculated_period, measurement_id, device_id))
+            connection.commit()
+            
+            return cursor.rowcount > 0
+            
+        except Error as e:
+            print(f"Error updating measurement: {e}")
+            return False
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+    return False
+
+def delete_measurement(measurement_id, measurement_type, device_id):
+    """Delete a measurement"""
+    connection = create_database_connection()
+    if connection:
+        try:
+            cursor = connection.cursor()
+            
+            if measurement_type == 'energy_usage':
+                table_name = 'EnergyUsage'
+            elif measurement_type == 'energy_collected':
+                table_name = 'EnergyCollected'
+            elif measurement_type == 'water_purified':
+                table_name = 'WaterPurified'
+            else:
+                return False
+            
+            query = f"DELETE FROM {table_name} WHERE id = %s AND device_id = %s"
+            cursor.execute(query, (measurement_id, device_id))
+            connection.commit()
+            
+            return cursor.rowcount > 0
+            
+        except Error as e:
+            print(f"Error deleting measurement: {e}")
+            return False
+        finally:
+            if connection.is_connected():
+                cursor.close()
+                connection.close()
+    return False
+
 @app.route('/')
 def index():
     if 'device_id' in session:
@@ -299,10 +425,12 @@ def dashboard():
     
     device_id = session['device_id']
     device_data = get_device_data(device_id)
+    alerts = get_device_alerts(device_id)
     
     return render_template('dashboard.html', 
                          device_id=device_id, 
-                         data=device_data)
+                         data=device_data,
+                         alerts=alerts)
 
 @app.route('/readings')
 def readings():
@@ -321,6 +449,30 @@ def readings():
                          device_id=device_id,
                          readings_data=readings_data,
                          measurement_type=measurement_type)
+
+@app.route('/alerts')
+def alerts():
+    if 'device_id' not in session:
+        flash('Please login first.', 'error')
+        return redirect(url_for('login'))
+    
+    device_id = session['device_id']
+    alerts = get_device_alerts(device_id)
+    
+    return render_template('alerts.html',
+                         device_id=device_id,
+                         alerts=alerts)
+
+@app.route('/clear_alerts', methods=['POST'])
+def clear_alerts():
+    if 'device_id' not in session:
+        return redirect(url_for('login'))
+    
+    device_id = session['device_id']
+    trend_analyzer.clear_alerts(device_id)
+    flash('Alerts cleared successfully!', 'success')
+    
+    return redirect(url_for('dashboard'))
 
 @app.route('/add_measurement', methods=['POST'])
 def add_measurement():
@@ -366,5 +518,73 @@ def add_measurement():
     
     return redirect(url_for('dashboard'))
 
+@app.route('/edit_measurement/<measurement_type>/<int:measurement_id>', methods=['GET', 'POST'])
+def edit_measurement(measurement_type, measurement_id):
+    if 'device_id' not in session:
+        flash('Please login first.', 'error')
+        return redirect(url_for('login'))
+    
+    device_id = session['device_id']
+    
+    if request.method == 'GET':
+        measurement = get_measurement_by_id(measurement_id, measurement_type)
+        if not measurement or measurement['device_id'] != device_id:
+            flash('Measurement not found or access denied.', 'error')
+            return redirect(url_for('readings'))
+        
+        return render_template('edit_measurement.html',
+                             measurement=measurement,
+                             measurement_type=measurement_type,
+                             device_id=device_id)
+    
+    elif request.method == 'POST':
+        new_value = request.form.get('value')
+        
+        if not new_value or not new_value.replace('.', '').replace('-', '').isdigit():
+            flash('Please enter a valid numeric value.', 'error')
+            return redirect(url_for('edit_measurement', measurement_type=measurement_type, measurement_id=measurement_id))
+        
+        try:
+            new_value = float(new_value)
+            if new_value < 0:
+                flash('Value cannot be negative.', 'error')
+                return redirect(url_for('edit_measurement', measurement_type=measurement_type, measurement_id=measurement_id))
+        except ValueError:
+            flash('Please enter a valid numeric value.', 'error')
+            return redirect(url_for('edit_measurement', measurement_type=measurement_type, measurement_id=measurement_id))
+        
+        if update_measurement(measurement_id, measurement_type, new_value, device_id):
+            flash(f'{measurement_type.replace("_", " ").title()} measurement updated successfully!', 'success')
+        else:
+            flash('Failed to update measurement. Please try again.', 'error')
+        
+        return redirect(url_for('readings'))
+
+@app.route('/delete_measurement/<measurement_type>/<int:measurement_id>', methods=['POST'])
+def delete_measurement_route(measurement_type, measurement_id):
+    if 'device_id' not in session:
+        flash('Please login first.', 'error')
+        return redirect(url_for('login'))
+    
+    device_id = session['device_id']
+    
+    if delete_measurement(measurement_id, measurement_type, device_id):
+        flash(f'{measurement_type.replace("_", " ").title()} measurement deleted successfully!', 'success')
+    else:
+        flash('Failed to delete measurement. Please try again.', 'error')
+    
+    return redirect(url_for('readings'))
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Get the Raspberry Pi's IP address for network access
+    import socket
+    hostname = socket.gethostname()
+    local_ip = socket.gethostbyname(hostname)
+    
+    print(f"SafiFlow Web Dashboard")
+    print(f"Local access: http://localhost:5000")
+    print(f"Network access: http://{local_ip}:5000")
+    print(f"Press Ctrl+C to stop the server")
+    
+    # Run Flask app on all network interfaces
+    app.run(host='0.0.0.0', port=5000, debug=False)

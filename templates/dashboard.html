@@ -332,6 +332,12 @@
                 <a href="{{ url_for('readings') }}" style="background: #38a169; color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; text-decoration: none; font-size: 0.9rem;">
                     <i class="fas fa-list"></i> View All Readings
                 </a>
+                <a href="{{ url_for('alerts') }}" style="background: #dd6b20; color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; text-decoration: none; font-size: 0.9rem;">
+                    <i class="fas fa-exclamation-triangle"></i> Alerts
+                    {% if alerts %}
+                        <span style="background: #e53e3e; color: white; border-radius: 50%; padding: 2px 6px; font-size: 0.7rem; margin-left: 5px;">{{ alerts|length }}</span>
+                    {% endif %}
+                </a>
                 <a href="{{ url_for('logout') }}" class="logout-btn">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a>
@@ -348,6 +354,62 @@
                 </div>
             {% endif %}
         {% endwith %}
+
+        <!-- Alerts Section -->
+        {% if alerts %}
+        <div class="alerts-section" style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 15px; padding: 20px; margin-bottom: 30px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="color: #4a5568; font-size: 1.3rem; font-weight: 700;">
+                    <i class="fas fa-exclamation-triangle" style="color: #e53e3e;"></i> Alerts & Warnings
+                </h3>
+                <form action="{{ url_for('clear_alerts') }}" method="post" style="display: inline;">
+                    <button type="submit" style="background: #e53e3e; color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-size: 0.8rem;">
+                        <i class="fas fa-times"></i> Clear All
+                    </button>
+                </form>
+            </div>
+            
+            <div class="alerts-grid" style="display: grid; gap: 15px;">
+                {% for alert in alerts %}
+                <div class="alert-item" style="padding: 15px; border-radius: 10px; border-left: 4px solid; 
+                    {% if alert.severity == 'critical' %}
+                        background: #fed7d7; border-color: #e53e3e; color: #742a2a;
+                    {% elif alert.severity == 'high' %}
+                        background: #fef5e7; border-color: #dd6b20; color: #744210;
+                    {% elif alert.severity == 'medium' %}
+                        background: #fef5e7; border-color: #dd6b20; color: #744210;
+                    {% else %}
+                        background: #bee3f8; border-color: #3182ce; color: #2a4365;
+                    {% endif %}">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; margin-bottom: 5px;">
+                                {% if alert.severity == 'critical' %}
+                                    <i class="fas fa-exclamation-circle"></i> Critical Alert
+                                {% elif alert.severity == 'high' %}
+                                    <i class="fas fa-exclamation-triangle"></i> High Priority
+                                {% elif alert.severity == 'medium' %}
+                                    <i class="fas fa-info-circle"></i> Warning
+                                {% else %}
+                                    <i class="fas fa-info-circle"></i> Notice
+                                {% endif %}
+                            </div>
+                            <div style="font-size: 0.9rem; line-height: 1.4;">
+                                {{ alert.message }}
+                            </div>
+                            {% if alert.timestamp %}
+                            <div style="font-size: 0.8rem; margin-top: 8px; opacity: 0.7;">
+                                <i class="fas fa-clock"></i> {{ alert.timestamp.strftime('%Y-%m-%d %H:%M') }}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Dashboard Grid -->
         <div class="dashboard-grid">

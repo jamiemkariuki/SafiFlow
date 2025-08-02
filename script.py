@@ -7,8 +7,22 @@ import time
 import RPi.GPIO as GPIO
 from rpi_lcd import LCD
 
+# GPIO Setup - Fix for edge detection error
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+
 # LCD Configuration
-lcd = LCD()
+try:
+    lcd = LCD()
+except Exception as e:
+    print(f"LCD Error: {e}")
+    # Create a dummy LCD class for testing
+    class DummyLCD:
+        def text(self, text, line):
+            print(f"LCD Line {line}: {text}")
+        def clear(self):
+            print("LCD Clear")
+    lcd = DummyLCD()
 
 # Keypad Configuration
 KEYPAD = [
@@ -21,9 +35,21 @@ KEYPAD = [
 ROW_PINS = [18, 23, 24, 25]  # BCM numbering
 COL_PINS = [17, 27, 22, 10]  # BCM numbering
 
-# Initialize keypad
-factory = rpi_gpio.KeypadFactory()
-keypad = factory.create_keypad(keypad=KEYPAD, row_pins=ROW_PINS, col_pins=COL_PINS)
+# Initialize keypad with error handling
+try:
+    factory = rpi_gpio.KeypadFactory()
+    keypad = factory.create_keypad(keypad=KEYPAD, row_pins=ROW_PINS, col_pins=COL_PINS)
+    keypad_available = True
+except Exception as e:
+    print(f"Keypad Error: {e}")
+    keypad_available = False
+    # Create a dummy keypad for testing
+    class DummyKeypad:
+        def getKey(self):
+            return None
+        def registerKeyPressHandler(self, handler):
+            pass
+    keypad = DummyKeypad()
 
 # Database configuration
 DB_CONFIG = {
@@ -181,7 +207,14 @@ def get_numeric_input(prompt):
     
     value = ""
     while True:
-        key = keypad.getKey()
+        if keypad_available:
+            key = keypad.getKey()
+        else:
+            # For testing without keypad
+            key = input("Enter key (or 'q' to quit): ").strip()
+            if key == 'q':
+                return None
+        
         if key:
             if key == '#':  # Enter key
                 if value:
@@ -303,7 +336,8 @@ lcd.text(device_id[:16], 2)
 time.sleep(3)
 
 # Register keypad handler
-keypad.registerKeyPressHandler(keypad_handler)
+if keypad_available:
+    keypad.registerKeyPressHandler(keypad_handler)
 
 # Main loop
 try:
