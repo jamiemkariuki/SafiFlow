@@ -2,7 +2,6 @@ import datetime as dt
 import mysql.connector
 from mysql.connector import Error
 from DeviceID import get_or_create_device_id
-from pad4pi import rpi_gpio
 import time
 import RPi.GPIO as GPIO
 from rpi_lcd import LCD
@@ -35,10 +34,17 @@ KEYPAD = [
 ROW_PINS = [18, 23, 24, 25]  # BCM numbering
 COL_PINS = [17, 27, 22, 10]  # BCM numbering
 
-# Initialize keypad with error handling
+# Initialize keypad with RPi.GPIO
 try:
-    factory = rpi_gpio.KeypadFactory()
-    keypad = factory.create_keypad(keypad=KEYPAD, row_pins=ROW_PINS, col_pins=COL_PINS)
+    # Setup row pins as outputs
+    for pin in ROW_PINS:
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.output(pin, GPIO.HIGH)
+    
+    # Setup column pins as inputs with pull-up resistors
+    for pin in COL_PINS:
+        GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    
     keypad_available = True
 except Exception as e:
     print(f"Keypad Error: {e}")
@@ -50,6 +56,27 @@ except Exception as e:
         def registerKeyPressHandler(self, handler):
             pass
     keypad = DummyKeypad()
+
+def get_keypad_key():
+    """Get key pressed on keypad using RPi.GPIO"""
+    if not keypad_available:
+        return None
+    
+    for row_idx, row_pin in enumerate(ROW_PINS):
+        # Set current row to LOW
+        GPIO.output(row_pin, GPIO.LOW)
+        
+        # Check each column
+        for col_idx, col_pin in enumerate(COL_PINS):
+            if GPIO.input(col_pin) == GPIO.LOW:
+                # Key pressed, set row back to HIGH
+                GPIO.output(row_pin, GPIO.HIGH)
+                return KEYPAD[row_idx][col_idx]
+        
+        # Set row back to HIGH
+        GPIO.output(row_pin, GPIO.HIGH)
+    
+    return None
 
 # Database configuration
 DB_CONFIG = {
@@ -208,7 +235,7 @@ def get_numeric_input(prompt):
     value = ""
     while True:
         if keypad_available:
-            key = keypad.getKey()
+            key = get_keypad_key()
         else:
             # For testing without keypad
             key = input("Enter key (or 'q' to quit): ").strip()
@@ -335,13 +362,17 @@ lcd.text("Device ID:", 1)
 lcd.text(device_id[:16], 2)
 time.sleep(3)
 
-# Register keypad handler
-if keypad_available:
-    keypad.registerKeyPressHandler(keypad_handler)
-
 # Main loop
 try:
     while True:
+        # Check for keypad input
+        if keypad_available:
+            key = get_keypad_key()
+            if key:
+                keypad_handler(key)
+                time.sleep(0.3)  # Debounce delay
+        
+        # Show menu periodically
         show_menu()
         time.sleep(0.1)  # Small delay to prevent CPU overuse
 
@@ -350,4 +381,6 @@ except KeyboardInterrupt:
     lcd.text("Goodbye!", 2)
     time.sleep(2)
     lcd.clear()
+    if keypad_available:
+        GPIO.cleanup()
     GPIO.cleanup()

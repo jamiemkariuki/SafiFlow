@@ -144,7 +144,7 @@ lcd.clear()
 
 ### test_keypad.py
 ```python
-from pad4pi import rpi_gpio
+import RPi.GPIO as GPIO
 import time
 
 KEYPAD = [
@@ -157,16 +157,48 @@ KEYPAD = [
 ROW_PINS = [18, 23, 24, 25]
 COL_PINS = [17, 27, 22, 10]
 
-def key_pressed(key):
-    print(f"Key pressed: {key}")
+def get_keypad_key():
+    """Get key pressed on keypad using RPi.GPIO"""
+    for row_idx, row_pin in enumerate(ROW_PINS):
+        # Set current row to LOW
+        GPIO.output(row_pin, GPIO.LOW)
+        
+        # Check each column
+        for col_idx, col_pin in enumerate(COL_PINS):
+            if GPIO.input(col_pin) == GPIO.LOW:
+                # Key pressed, set row back to HIGH
+                GPIO.output(row_pin, GPIO.HIGH)
+                return KEYPAD[row_idx][col_idx]
+        
+        # Set row back to HIGH
+        GPIO.output(row_pin, GPIO.HIGH)
+    
+    return None
 
-factory = rpi_gpio.KeypadFactory()
-keypad = factory.create_keypad(keypad=KEYPAD, row_pins=ROW_PINS, col_pins=COL_PINS)
-keypad.registerKeyPressHandler(key_pressed)
+# Initialize GPIO
+GPIO.setmode(GPIO.BCM)
+GPIO.setwarnings(False)
+
+# Setup row pins as outputs
+for pin in ROW_PINS:
+    GPIO.setup(pin, GPIO.OUT)
+    GPIO.output(pin, GPIO.HIGH)
+
+# Setup column pins as inputs with pull-up resistors
+for pin in COL_PINS:
+    GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 print("Press keys on keypad...")
-while True:
-    time.sleep(0.1)
+try:
+    while True:
+        key = get_keypad_key()
+        if key:
+            print(f"Key pressed: {key}")
+            time.sleep(0.3)  # Debounce delay
+        time.sleep(0.1)
+except KeyboardInterrupt:
+    print("Shutting down...")
+    GPIO.cleanup()
 ```
 
 ## Usage Instructions
